@@ -109,7 +109,7 @@ async def process_logs_and_train():
         q_score = await llm_judge(data["query"], data["response"])
 
         # SỬA #3: Reward thuần outcome — KHÔNG CÓ decision_bonus
-        cost = 1.0 if action == 1 else 0.1
+        cost = 4.0 if action == 1 else 0.0
         reward = NetworkEnvironment.compute_reward_from_log(latency, q_score, cost)
 
         print(
