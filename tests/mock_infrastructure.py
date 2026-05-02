@@ -1,3 +1,8 @@
+# # Gán URL trỏ vào cổng 8001 của Mock Server
+# $env:KMP_DUPLICATE_LIB_OK="TRUE"
+# $env:EDGE_NODE_URL="http://127.0.0.1:8001/edge/api/generate"
+# $env:CLOUD_NODE_URL="http://127.0.0.1:8001/cloud/api/generate"
+# $env:PROMETHEUS_URL="http://127.0.0.1:8001/api/v1/query"
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -21,10 +26,10 @@ async def mock_llm_stream(node_name: str, base_lat: float, req: Request):
     
     if node_name == "edge":
         edge_pending += 1
-        lat = base_lat + edge_pending * 1.5
+        lat = base_lat + edge_pending * 3.0
     else:
         cloud_pending += 1
-        lat = base_lat + cloud_pending * 0.5
+        lat = base_lat + cloud_pending * 1.0
         
     try:
         try:
@@ -51,11 +56,13 @@ async def mock_llm_stream(node_name: str, base_lat: float, req: Request):
 
 @app.post("/edge/api/generate")
 async def edge_api(req: Request):
-    return StreamingResponse(mock_llm_stream("edge", 1.0, req), media_type="application/x-ndjson")
+    # Mô phỏng Edge thực tế mất 18s do VPN
+    return StreamingResponse(mock_llm_stream("edge", 18.0, req), media_type="application/x-ndjson")
 
 @app.post("/cloud/api/generate")
 async def cloud_api(req: Request):
-    return StreamingResponse(mock_llm_stream("cloud", 3.0, req), media_type="application/x-ndjson")
+    # Cloud nhanh hơn, khoảng 4s
+    return StreamingResponse(mock_llm_stream("cloud", 4.0, req), media_type="application/x-ndjson")
 
 @app.get("/api/v1/query")
 async def prometheus_api(query: str):

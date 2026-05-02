@@ -16,7 +16,9 @@ CRITICAL_KEYWORDS = [
     "phẫu thuật",
     "chống chỉ định",
     "corticoid",
-    "allopurinol"
+    "allopurinol",
+    "suy gan",
+    "acid uric"
 ]
 
 def _keyword_found(keyword: str, tokenized_text: str, raw_text: str) -> bool:

@@ -69,30 +69,29 @@ class NetworkEnvironment:
         self.step_count += 1
 
         # --- Tính outcome của action ---
-        if action == 0:  # Edge (1.5B) - Nhanh nhưng dốt câu khó
-            # Base latency của Edge thấp (1.5s)
-            base_lat = 1.5 + self.edge_pending * 1.5
+        if action == 0:  # Edge (1.5B) - Yếu, chạy qua VPN
+            # Base latency của Edge rất cao (16 - 20s)
+            base_lat = 18.0 + self.edge_pending * 3.0
             cpu_factor = 1.0 + self.edge_cpu
-            # Câu hỏi phức tạp sẽ mất thời gian hơn xíu
-            complexity_factor = 2.0 if self.is_complex else 1.0
+            complexity_factor = 1.2 if self.is_complex else 1.0
             latency = base_lat * cpu_factor * complexity_factor
-            latency += random.uniform(-0.2, 0.5)
-            latency = max(0.5, latency)
+            latency += random.uniform(-2.0, 2.0)
+            latency = max(5.0, latency)
 
             # Chất lượng: Câu dễ = 9.0 (rất tốt), Câu khó = 4.0 (rất tệ)
             quality = random.uniform(3.0, 5.0) if self.is_complex else random.uniform(8.5, 9.5)
-            cost = 0.1
-        else:  # Cloud (7B) - Chậm do mạng, nhưng thông minh
-            # Base latency của Cloud cao hơn do trễ mạng (3.5s)
-            base_lat = 3.5 + self.cloud_pending * 1.0
+            cost = 0.0  # Chạy ở Edge miễn phí
+        else:  # Cloud (7B) - Nhanh, mạnh nhưng tốn tiền
+            # Base latency của Cloud thấp hơn (4 - 6s)
+            base_lat = 5.0 + self.cloud_pending * 1.0
             cpu_factor = 1.0 + self.cloud_cpu * 0.5
             latency = base_lat * cpu_factor
-            latency += random.uniform(-0.5, 1.5)
-            latency = max(1.0, latency)
+            latency += random.uniform(-1.0, 1.0)
+            latency = max(2.0, latency)
 
             # Chất lượng luôn tốt
             quality = random.uniform(8.5, 10.0)
-            cost = 1.0
+            cost = 1.0  # Chi phí Cloud hợp lý hơn để Agent dám dùng
 
         # --- STATE TRANSITION: action ảnh hưởng state tương lai ---
         if action == 0:
@@ -142,8 +141,10 @@ class NetworkEnvironment:
         Agent phải TỰ HỌC rằng complex → Cloud cho quality cao hơn.
         """
         quality_reward = (quality / 10.0) * 5.0
-        latency_penalty = (latency / 5.0) ** 1.5
-        cost_penalty = cost * 0.5
+        # Trễ chuẩn được nới lỏng lên 25.0s do Edge chạy cực yếu qua VPN
+        latency_penalty = (latency / 25.0) ** 1.5
+        # Phạt chi phí vừa đủ để Agent cân nhắc
+        cost_penalty = cost * 2.0
 
         return quality_reward - latency_penalty - cost_penalty
 

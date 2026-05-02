@@ -29,6 +29,8 @@ REQUEST_COUNT = Counter("gateway_requests_total", "Tổng số request đã nh�
 LATENCY_HIST = Histogram("gateway_request_latency_seconds", "Độ trễ thực tế của request", ["routed_to"])
 
 # Network state tracking — KEY cho state transitions
+STATE_LAT_MAX = 5.0
+
 history_latency = {
     "edge": 5.0,
     "cloud": 3.5
@@ -82,10 +84,10 @@ async def network_monitor_probe():
                             history_latency[node] = (0.5 * real_lat) + (0.5 * history_latency[node])
                     else:
                         async with latency_lock:
-                            history_latency[node] = 30.0
+                            history_latency[node] = STATE_LAT_MAX
                 except Exception as e:
                     async with latency_lock:
-                        history_latency[node] = 30.0
+                        history_latency[node] = STATE_LAT_MAX
                     print(f"⚠️Probe {node} failed: {e}")
 
             await asyncio.sleep(15)
@@ -98,7 +100,8 @@ async def network_monitor_probe():
 async def startup_event():
     global http_client
     limits = httpx.Limits(max_keepalive_connections=100, max_connections=200)
-    http_client = httpx.AsyncClient(limits=limits)
+    # Quan trọng: Phải set timeout ở đây vì Edge thực tế phản hồi rất chậm qua VPN
+    http_client = httpx.AsyncClient(limits=limits, timeout=120.0)
     asyncio.create_task(network_monitor_probe())
 
 
@@ -145,8 +148,8 @@ async def build_state(nlp_state, edge_cpu, cloud_cpu):
     return np.array([
         nlp_state["critical_count"],
         1.0 if nlp_state["is_complex"] else 0.0,
-        min(edge_lat, 5.0),
-        min(cloud_lat, 5.0),
+        min(edge_lat, STATE_LAT_MAX),
+        min(cloud_lat, STATE_LAT_MAX),
         edge_cpu,
         cloud_cpu,
         min(edge_pend / 10.0, 1.0),
@@ -229,8 +232,8 @@ async def ask_medical_question(request: MedicalQuery, background_tasks: Backgrou
         )
         next_state_vector = await build_state(nlp_state, next_edge_cpu, next_cloud_cpu)
 
-        # REWARD thuần outcome — không hardcode policy
-        cost = 1.0 if action == 1 else 0.1
+        # REWARD thuần outcome — Đồng bộ với Environment mới
+        cost = 1.0 if action == 1 else 0.0
         quality_proxy = min(len(full_response_text) / 100.0, 10.0)  # Proxy cho chất lượng
         reward = NetworkEnvironment.compute_reward_from_log(llm_latency, quality_proxy, cost)
 

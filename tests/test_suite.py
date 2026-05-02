@@ -26,10 +26,11 @@ QUERIES = {
     ]
 }
 
-async def send_request(client, category, query, request_id):
+async def send_request(client, category, query, request_id, retries=1):
     start_time = time.time()
+    print(f"⏳ [REQ {request_id}] Đang gửi câu hỏi '{category}'... (có thể mất 18-20s nếu vào Edge)")
     try:
-        async with client.stream("POST", URL, json={"query": query}, timeout=60.0) as resp:
+        async with client.stream("POST", URL, json={"query": query}, timeout=180.0) as resp:
             if resp.status_code != 200:
                 print(f"❌ [REQ {request_id}] Lỗi {resp.status_code}")
                 return
@@ -61,11 +62,26 @@ async def send_request(client, category, query, request_id):
             # print(f"   Trả lời: {full_text[:50]}...")
             
     except Exception as e:
-        print(f"❌ [REQ {request_id}] Lỗi: {e}")
+        import traceback
+        traceback.print_exc()
+        if isinstance(e, (httpx.ReadTimeout, httpx.ConnectTimeout)) and retries > 0:
+            print(f"⚠️ [REQ {request_id}] Timeout, thử lại...")
+            return await send_request(client, category, query, request_id, retries=retries - 1)
+        print(f"❌ [REQ {request_id}] Lỗi: {repr(e)}")
 
 async def run_suite():
-    async with httpx.AsyncClient() as client:
+    timeout = httpx.Timeout(connect=20.0, read=180.0, write=20.0, pool=20.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         print("\n=== BẮT ĐẦU TEST SUITE ===\n")
+
+        # Warmup lần đầu để tránh timeout do model cold start
+        try:
+            async with client.stream("POST", URL, json={"query": "warmup"}, timeout=180.0) as resp:
+                if resp.status_code == 200:
+                    async for _ in resp.aiter_lines():
+                        break
+        except Exception:
+            pass
         
         print("--- PHASE 1: CÂU HỎI ĐƠN GIẢN (Mong đợi: EDGE) ---")
         for i, q in enumerate(QUERIES["SIMPLE"]):
