@@ -3,6 +3,10 @@ baselines.py — Các chiến lược baseline để so sánh với DQN Agent.
 Tất cả đều implement cùng interface: get_action(state_vector, context) -> int
   action = 0: Edge
   action = 1: Cloud
+
+State vector (8-dim):
+  [critical_count, is_complex, edge_lat, cloud_lat,
+   edge_cpu, cloud_cpu, edge_pending_norm, cloud_pending_norm]
 """
 import itertools
 
@@ -39,7 +43,6 @@ class LatencyBasedBaseline:
     - Nếu câu phức tạp (is_complex) → Cloud (an toàn y tế)
     - Nếu history_latency Edge < Cloud - threshold → Edge
     - Ngược lại → Cloud
-    state_vector layout: [critical_count, is_complex, safe_edge_lat, safe_cloud_lat, edge_cpu, cloud_cpu]
     """
     def __init__(self, latency_threshold: float = 2.0):
         self.threshold = latency_threshold
@@ -51,9 +54,9 @@ class LatencyBasedBaseline:
         cloud_lat  = state_vector[3]
 
         if is_complex:
-            return 1  # an toàn y tế trước
+            return 1
         if edge_lat <= cloud_lat - self.threshold:
-            return 0  # Edge đang nhanh hơn đáng kể
+            return 0
         return 1
 
 
@@ -63,7 +66,6 @@ class CpuAwareBaseline:
     - Nếu câu phức tạp → Cloud
     - Nếu edge_cpu < cpu_threshold → Edge
     - Ngược lại → Cloud
-    state_vector layout: [critical_count, is_complex, safe_edge_lat, safe_cloud_lat, edge_cpu, cloud_cpu]
     """
     def __init__(self, cpu_threshold: float = 0.75):
         self.threshold = cpu_threshold
@@ -80,6 +82,23 @@ class CpuAwareBaseline:
         return 1
 
 
+class LoadBalancerBaseline:
+    """
+    Dựa trên pending requests — baseline mới tận dụng state 8-dim.
+    Route đến node có ít pending request hơn, trừ khi câu phức tạp.
+    """
+    name = "LoadBalancer"
+
+    def get_action(self, state_vector, context=None) -> int:
+        is_complex = bool(state_vector[1])
+        edge_pending = state_vector[6]
+        cloud_pending = state_vector[7]
+
+        if is_complex:
+            return 1
+        return 0 if edge_pending <= cloud_pending else 1
+
+
 def get_all_baselines() -> list:
     return [
         RoundRobinBaseline(),
@@ -87,4 +106,5 @@ def get_all_baselines() -> list:
         AlwaysEdgeBaseline(),
         LatencyBasedBaseline(),
         CpuAwareBaseline(),
+        LoadBalancerBaseline(),
     ]

@@ -1,74 +1,79 @@
+"""
+generate_log.py — Sinh demo log qua NetworkEnvironment
+
+SỬA LỖI: Dùng environment cho state transitions thực sự.
+Agent explore (ε=0.5) để có diverse data, không chỉ expert policy.
+"""
+
 import json
 import random
-import time
+from environment import NetworkEnvironment
+from rl_agent import DQNAgent
 
 LOG_FILE = "demo_experience.jsonl"
-NUM_RECORDS = 2000
+NUM_EPISODES = 40
+EPISODE_LENGTH = 50
 
-print(f"Đang sinh {NUM_RECORDS} dòng log giả lập dữ liệu mạng...")
+print(f"Đang sinh {NUM_EPISODES * EPISODE_LENGTH} dòng log qua RL Environment...")
+
+env = NetworkEnvironment(episode_length=EPISODE_LENGTH)
+agent = DQNAgent(state_dim=8, action_dim=2)
+agent.epsilon = 0.5  # 50% explore, 50% exploit random policy
+
+SIMPLE_QUERIES = [
+    "Bệnh gút là gì?",
+    "Triệu chứng của gút là gì?",
+    "Chế độ ăn kiêng cho bệnh nhân gút?",
+    "Gút có chữa khỏi hoàn toàn được không?",
+    "Bệnh gút có lây không?",
+]
+COMPLEX_QUERIES = [
+    "Bệnh nhân gút có hạt tôphi bị loét, kèm suy thận mãn tính thì nên điều trị như thế nào?",
+    "Chống chỉ định của allopurinol khi bệnh nhân có tiền sử dị ứng và suy thận nặng?",
+    "Bệnh nhân gút cấp tính có biến chứng dịch khớp nhiều, cần xét nghiệm gì trước phẫu thuật?",
+    "Phác đồ điều trị gút cho bệnh nhân cao tuổi có suy thận, tiểu đường?",
+]
 
 records = []
-for i in range(NUM_RECORDS):
-    is_complex = random.random() < 0.3
-    critical_count = random.randint(1, 3) if is_complex else 0
 
-    edge_cpu = random.uniform(0.1, 0.95)
-    # FIX: Cloud cũng có thể bị tải cao, không bias thấp hơn Edge
-    cloud_cpu = random.uniform(0.1, 0.90)
+for ep in range(NUM_EPISODES):
+    state = env.reset()
 
-    # FIX: random.uniform(1.0, 25.0) thay vì (5.0, 25.0) để safe_lat có thể < 5.0
-    # min(..., 5.0) giữ đúng như app3 nhưng bây giờ có variance thực sự
-    safe_edge_lat = min(random.uniform(1.0, 25.0), 5.0)
-    safe_cloud_lat = min(random.uniform(1.0, 15.0), 5.0)
+    for step in range(EPISODE_LENGTH):
+        action = agent.get_action(state, explore=True)
+        next_state, reward, done, info = env.step(action)
 
-    state_vector = [
-        critical_count,
-        1.0 if is_complex else 0.0,
-        safe_edge_lat,
-        safe_cloud_lat,
-        edge_cpu,
-        cloud_cpu
-    ]
+        is_complex = bool(state[1])
+        query = random.choice(COMPLEX_QUERIES if is_complex else SIMPLE_QUERIES)
 
-    # 80% expert, 20% ngẫu nhiên
-    if random.random() < 0.8:
-        if is_complex:
-            action = 1
-        elif edge_cpu > 0.85:
-            action = 1
-        else:
-            action = 0
-    else:
-        action = random.choice([0, 1])
+        records.append({
+            "timestamp": ep * EPISODE_LENGTH + step,
+            "episode": ep,
+            "query": query,
+            "response": "Nội dung giả lập...",
+            "state_vector": state.tolist(),
+            "next_state_vector": next_state.tolist(),
+            "action": int(action),
+            "routed_to": "cloud" if action == 1 else "edge",
+            "reward": round(float(reward), 4),
+            "latency": round(info["latency"], 3),
+            "quality": round(info["quality"], 2),
+            "is_complex": is_complex,
+            "done": done,
+            "mock_score": round(info["quality"], 1),
+        })
 
-    routed_to = "cloud" if action == 1 else "edge"
-
-    if action == 0:
-        if is_complex:
-            latency = random.uniform(30.0, 60.0)
-            mock_score = random.uniform(3.0, 5.0)
-        else:
-            latency = random.uniform(6.0, 14.0) * (1.0 + edge_cpu)
-            mock_score = random.uniform(7.5, 9.0)
-    else:
-        latency = random.uniform(4.0, 8.0) * (1.0 + cloud_cpu)
-        mock_score = random.uniform(8.5, 10.0)
-
-    record = {
-        "timestamp": time.time() - random.randint(0, 86400),
-        "query": f"Fake {'Complex' if is_complex else 'Simple'} Query #{i}",
-        "response": "Nội dung giả lập...",
-        "state_vector": state_vector,
-        "action": action,
-        "routed_to": routed_to,
-        "latency": round(latency, 3),
-        "is_complex": is_complex,
-        "mock_score": round(mock_score, 1)
-    }
-    records.append(record)
+        state = next_state
+        if done:
+            break
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     for r in records:
         f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-print(f"✅ Hoàn tất! Đã lưu vào {LOG_FILE}.")
+complex_count = sum(1 for r in records if r["is_complex"])
+edge_count = sum(1 for r in records if r["action"] == 0)
+print(f"✅ Hoàn tất! Đã lưu {len(records)} records vào {LOG_FILE}.")
+print(f"   Episodes: {NUM_EPISODES} × {EPISODE_LENGTH} steps")
+print(f"   Complex: {complex_count} ({complex_count/len(records)*100:.1f}%)")
+print(f"   Edge: {edge_count} ({edge_count/len(records)*100:.1f}%)")

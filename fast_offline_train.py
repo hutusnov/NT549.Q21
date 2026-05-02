@@ -1,51 +1,88 @@
-import json
+"""
+fast_offline_train.py — Offline RL Training qua Environment Simulator
+
+SỬA LỖI CHÍNH:
+1. Dùng NetworkEnvironment có state transition THỰC SỰ
+2. Agent TỰ EXPLORE (ε-greedy), không bắt chước expert
+3. Multi-step episodes (done=False trong episode, True ở cuối)
+4. Reward thuần outcome từ environment, không hardcode policy
+"""
+
 import numpy as np
 import time
-import os
 from rl_agent import DQNAgent
-from train_worker import compute_reward  # Single source of truth cho reward
+from environment import NetworkEnvironment
 
-LOG_FILE = "demo_experience.jsonl"
-MODEL_FILE = "dqn_model_demo.pth"
+MODEL_FILE = "dqn_model.pth"
+NUM_EPISODES = 500
+EPISODE_LENGTH = 50
 
-agent = DQNAgent(state_dim=6, action_dim=2)
-# Bỏ load_model để học từ đầu với fake data
+agent = DQNAgent(state_dim=8, action_dim=2)
+# Không load model cũ — học từ đầu với architecture mới
+agent.epsilon = 1.0  # Bắt đầu với full exploration
 
-def train_fast():
-    if not os.path.exists(LOG_FILE):
-        print("⚠️ Không tìm thấy file log.")
-        return
 
-    print("🚀 BẮT ĐẦU ÉP XUNG HUẤN LUYỆN (OFFLINE RL)...")
-    with open(LOG_FILE, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+def train_with_environment():
+    env = NetworkEnvironment(episode_length=EPISODE_LENGTH)
 
-    valid_experiences = 0
-    for idx, line in enumerate(lines):
-        data = json.loads(line)
-        state_vector = np.array(data["state_vector"])
-        action = data["action"]
-        latency = data["latency"]
-        is_complex = data.get("is_complex", False)
+    print(f"🚀 BẮT ĐẦU HUẤN LUYỆN RL THỰC SỰ")
+    print(f"   Episodes: {NUM_EPISODES} × {EPISODE_LENGTH} steps")
+    print(f"   Agent tự explore và học từ hậu quả\n")
 
-        q_score = data.get("mock_score", 5.0)
-        normalized_score = 10.0 if q_score >= 7.0 else q_score
+    all_rewards = []
+    all_edge_ratios = []
 
-        reward = compute_reward(action, latency, is_complex, normalized_score)
+    for ep in range(NUM_EPISODES):
+        state = env.reset()
+        episode_reward = 0
+        edge_count = 0
 
-        agent.remember(state_vector, action, reward, state_vector, done=True)
-        valid_experiences += 1
+        for step in range(EPISODE_LENGTH):
+            # Agent TỰ CHỌN action bằng ε-greedy (explore)
+            action = agent.get_action(state, explore=True)
 
-    if valid_experiences >= agent.batch_size:
-        print(f"Đang nhồi {valid_experiences} kinh nghiệm vào mạng Nơ-ron...")
-        for _ in range(30 * (valid_experiences // agent.batch_size)):
+            # Environment trả về NEXT STATE thực sự
+            # (state transition: node bận hơn sau khi route)
+            next_state, reward, done, info = env.step(action)
+
+            # Lưu experience với next_state ≠ state
+            agent.remember(state, action, reward, next_state, done)
+
+            # Học từ experience
             agent.replay()
 
-        agent.save_model(MODEL_FILE)
-        print(f"✅ Đã lưu bộ não vào {MODEL_FILE}")
-        os.rename(LOG_FILE, f"used_demo_log_{int(time.time())}.jsonl")
-    else:
-        print("Lỗi: Không đủ data.")
+            state = next_state
+            episode_reward += reward
+            if action == 0:
+                edge_count += 1
+
+            if done:
+                break
+
+        all_rewards.append(episode_reward)
+        edge_ratio = edge_count / EPISODE_LENGTH * 100
+        all_edge_ratios.append(edge_ratio)
+
+        if (ep + 1) % 50 == 0:
+            avg_r = np.mean(all_rewards[-50:])
+            avg_edge = np.mean(all_edge_ratios[-50:])
+            print(
+                f"Episode {ep+1:>4}/{NUM_EPISODES} | "
+                f"Avg Reward: {avg_r:>7.2f} | "
+                f"Edge%: {avg_edge:>5.1f}% | "
+                f"ε: {agent.epsilon:.3f}"
+            )
+
+    agent.save_model(MODEL_FILE)
+    print(f"\n✅ Đã lưu model vào {MODEL_FILE}")
+
+    # In thống kê cuối
+    print("\n📊 Kết quả training:")
+    print(f"   Reward đầu (50 ep):  {np.mean(all_rewards[:50]):.2f}")
+    print(f"   Reward cuối (50 ep): {np.mean(all_rewards[-50:]):.2f}")
+    print(f"   Edge% đầu:  {np.mean(all_edge_ratios[:50]):.1f}%")
+    print(f"   Edge% cuối: {np.mean(all_edge_ratios[-50:]):.1f}%")
+
 
 if __name__ == "__main__":
-    train_fast()
+    train_with_environment()
