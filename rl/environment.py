@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 environment.py - Network Routing Environment cho RL
 
@@ -65,24 +69,29 @@ class NetworkEnvironment:
         self.step_count += 1
 
         # --- Tính outcome của action ---
-        if action == 0:  # Edge (1.5B)
-            base_lat = 5.0 + self.edge_pending * 2.0
+        if action == 0:  # Edge (1.5B) - Nhanh nhưng dốt câu khó
+            # Base latency của Edge thấp (1.5s)
+            base_lat = 1.5 + self.edge_pending * 1.5
             cpu_factor = 1.0 + self.edge_cpu
-            complexity_factor = 3.0 if self.is_complex else 1.0
+            # Câu hỏi phức tạp sẽ mất thời gian hơn xíu
+            complexity_factor = 2.0 if self.is_complex else 1.0
             latency = base_lat * cpu_factor * complexity_factor
-            latency += random.uniform(-1.0, 2.0)
-            latency = max(1.0, latency)
+            latency += random.uniform(-0.2, 0.5)
+            latency = max(0.5, latency)
 
-            quality = random.uniform(3.0, 5.5) if self.is_complex else random.uniform(7.0, 9.0)
+            # Chất lượng: Câu dễ = 9.0 (rất tốt), Câu khó = 4.0 (rất tệ)
+            quality = random.uniform(3.0, 5.0) if self.is_complex else random.uniform(8.5, 9.5)
             cost = 0.1
-        else:  # Cloud (7B)
-            base_lat = 3.0 + self.cloud_pending * 1.5
+        else:  # Cloud (7B) - Chậm do mạng, nhưng thông minh
+            # Base latency của Cloud cao hơn do trễ mạng (3.5s)
+            base_lat = 3.5 + self.cloud_pending * 1.0
             cpu_factor = 1.0 + self.cloud_cpu * 0.5
             latency = base_lat * cpu_factor
             latency += random.uniform(-0.5, 1.5)
             latency = max(1.0, latency)
 
-            quality = random.uniform(8.0, 10.0)
+            # Chất lượng luôn tốt
+            quality = random.uniform(8.5, 10.0)
             cost = 1.0
 
         # --- STATE TRANSITION: action ảnh hưởng state tương lai ---

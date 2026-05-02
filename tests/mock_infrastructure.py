@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import asyncio
 import json
 import random
@@ -47,11 +51,11 @@ async def mock_llm_stream(node_name: str, base_lat: float, req: Request):
 
 @app.post("/edge/api/generate")
 async def edge_api(req: Request):
-    return StreamingResponse(mock_llm_stream("edge", 2.0, req), media_type="application/x-ndjson")
+    return StreamingResponse(mock_llm_stream("edge", 1.0, req), media_type="application/x-ndjson")
 
 @app.post("/cloud/api/generate")
 async def cloud_api(req: Request):
-    return StreamingResponse(mock_llm_stream("cloud", 1.0, req), media_type="application/x-ndjson")
+    return StreamingResponse(mock_llm_stream("cloud", 3.0, req), media_type="application/x-ndjson")
 
 @app.get("/api/v1/query")
 async def prometheus_api(query: str):

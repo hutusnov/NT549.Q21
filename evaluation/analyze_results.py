@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # analyze_results.py
 import argparse
 import csv
@@ -227,8 +231,8 @@ def make_report(csv_path: str, detail_dir: str, out_dir: str = "figures"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv",    default="benchmark_results.csv")
-    parser.add_argument("--detail", default="benchmark_detail")
+    parser.add_argument("--csv",    default=os.path.join(os.path.dirname(__file__), "..", "data", "benchmark_results.csv"))
+    parser.add_argument("--detail", default=os.path.join(os.path.dirname(__file__), "..", "data", "benchmark_detail"))
     parser.add_argument("--out",    default="figures")
     args = parser.parse_args()
 

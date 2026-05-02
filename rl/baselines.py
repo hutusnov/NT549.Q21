@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 baselines.py — Các chiến lược baseline để so sánh với DQN Agent.
 Tất cả đều implement cùng interface: get_action(state_vector, context) -> int

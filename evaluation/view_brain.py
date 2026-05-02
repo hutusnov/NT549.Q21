@@ -1,9 +1,13 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import torch
 
 # 1. Đọc file .pth vào bộ nhớ
 print("Đang mở hộp sọ AI...")
 try:
-    checkpoint = torch.load("dqn_model.pth", map_location=torch.device('cpu'), weights_only=True)
+    checkpoint = torch.load(os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth"), map_location=torch.device('cpu'), weights_only=True)
 
     # Hỗ trợ cả format mới (checkpoint dict) và cũ (raw state_dict)
     if isinstance(checkpoint, dict) and 'model' in checkpoint:

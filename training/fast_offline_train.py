@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 fast_offline_train.py — Offline RL Training qua Environment Simulator
 
@@ -10,10 +14,10 @@ SỬA LỖI CHÍNH:
 
 import numpy as np
 import time
-from rl_agent import DQNAgent
-from environment import NetworkEnvironment
+from rl.rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
 
-MODEL_FILE = "dqn_model.pth"
+MODEL_FILE = os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth")
 NUM_EPISODES = 500
 EPISODE_LENGTH = 50
 

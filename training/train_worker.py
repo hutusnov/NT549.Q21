@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 train_worker.py — Online Training từ production logs
 
@@ -15,15 +19,15 @@ import re
 import numpy as np
 import time
 import os
-from rl_agent import DQNAgent
-from environment import NetworkEnvironment
+from rl.rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 if not OPENAI_API_KEY:
     raise RuntimeError("Thiếu OPENAI_API_KEY. Chạy: export OPENAI_API_KEY=sk-...")
 
-LOG_FILE = "experience_log.jsonl"
-MODEL_FILE = "dqn_model.pth"
+LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "experience_log.jsonl")
+MODEL_FILE = os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth")
 
 agent = DQNAgent(state_dim=8, action_dim=2)
 agent.load_model(MODEL_FILE)

@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 generate_log.py — Sinh demo log qua NetworkEnvironment
 
@@ -7,10 +11,10 @@ Agent explore (ε=0.5) để có diverse data, không chỉ expert policy.
 
 import json
 import random
-from environment import NetworkEnvironment
-from rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
+from rl.rl_agent import DQNAgent
 
-LOG_FILE = "demo_experience.jsonl"
+LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "demo_experience.jsonl")
 NUM_EPISODES = 40
 EPISODE_LENGTH = 50
 

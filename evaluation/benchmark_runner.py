@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 benchmark_runner.py — Benchmark qua NetworkEnvironment
 
@@ -15,9 +19,9 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Dict
 
-from baselines import get_all_baselines
-from rl_agent import DQNAgent
-from environment import NetworkEnvironment
+from rl.baselines import get_all_baselines
+from rl.rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
 
 # SLA thresholds
 EDGE_SLA_SECONDS = 15.0
@@ -168,7 +172,7 @@ def print_table(results: List[StrategyResult]):
     print(sep + "\n")
 
 
-def save_csv(results: List[StrategyResult], out_path: str = "benchmark_results.csv"):
+def save_csv(results: List[StrategyResult], out_path: str = os.path.join(os.path.dirname(__file__), "..", "data", "benchmark_results.csv")):
     fieldnames = ["strategy", "p50_latency", "p95_latency", "p99_latency",
                   "mean_latency", "total_cost", "sla_violation_rate",
                   "mean_quality", "mean_reward", "edge_ratio", "cloud_ratio"]
@@ -192,7 +196,7 @@ def save_csv(results: List[StrategyResult], out_path: str = "benchmark_results.c
     print(f"💾 Đã lưu kết quả vào {out_path}")
 
 
-def save_routing_detail(results: List[StrategyResult], out_dir: str = "benchmark_detail"):
+def save_routing_detail(results: List[StrategyResult], out_dir: str = os.path.join(os.path.dirname(__file__), "..", "data", "benchmark_detail")):
     """Lưu routing log chi tiết của từng strategy để vẽ biểu đồ sau."""
     os.makedirs(out_dir, exist_ok=True)
     for r in results:
@@ -205,13 +209,13 @@ def save_routing_detail(results: List[StrategyResult], out_dir: str = "benchmark
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark routing strategies")
-    parser.add_argument("--model", default="dqn_model.pth",
+    parser.add_argument("--model", default=os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth"),
                         help="File model DQN (.pth)")
     parser.add_argument("--episodes", type=int, default=100,
                         help="Số episodes để benchmark")
     parser.add_argument("--length", type=int, default=50,
                         help="Số steps mỗi episode")
-    parser.add_argument("--out", default="benchmark_results.csv",
+    parser.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "data", "benchmark_results.csv"),
                         help="File CSV đầu ra")
     args = parser.parse_args()
 

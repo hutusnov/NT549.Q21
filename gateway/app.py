@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # app.py — RL-based Medical LLM Gateway
 #
 # SỬA LỖI CHÍNH:
@@ -16,9 +20,9 @@ import numpy as np
 import json
 import aiofiles
 import os
-from feature_extractor import analyze_query
-from rl_agent import DQNAgent
-from environment import NetworkEnvironment
+from gateway.feature_extractor import analyze_query
+from rl.rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 REQUEST_COUNT = Counter("gateway_requests_total", "Tổng số request đã nhận", ["routed_to"])
@@ -46,7 +50,7 @@ CLOUD_NODE_URL = os.environ.get("CLOUD_NODE_URL", "http://100.110.167.50:11434/a
 PROMETHEUS_URL = os.environ.get("PROMETHEUS_URL", "http://localhost:9090/api/v1/query")
 
 agent = DQNAgent(state_dim=8, action_dim=2)
-agent.load_model("dqn_model.pth")
+agent.load_model(os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth"))
 
 
 class MedicalQuery(BaseModel):
@@ -152,7 +156,7 @@ async def build_state(nlp_state, edge_cpu, cloud_cpu):
 
 async def write_log_safe(log_entry: dict):
     async with log_lock:
-        async with aiofiles.open("experience_log.jsonl", mode="a", encoding="utf-8") as f:
+        async with aiofiles.open(os.path.join(os.path.dirname(__file__), "..", "data", "experience_log.jsonl"), mode="a", encoding="utf-8") as f:
             await f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
 
 

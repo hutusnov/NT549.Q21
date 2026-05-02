@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 """
 traffic_simulator.py — Sinh traffic với STATE TRANSITIONS thực sự
 
@@ -16,8 +20,8 @@ import json
 import random
 import argparse
 import numpy as np
-from environment import NetworkEnvironment
-from rl_agent import DQNAgent
+from rl.environment import NetworkEnvironment
+from rl.rl_agent import DQNAgent
 
 
 def generate_episodes(num_episodes: int, episode_length: int,

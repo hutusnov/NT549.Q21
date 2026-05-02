@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -136,7 +140,7 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def save_model(self, file_path="dqn_model.pth"):
+    def save_model(self, file_path=os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth")):
         torch.save({
             'model': self.model.state_dict(),
             'target_model': self.target_model.state_dict(),
@@ -144,7 +148,7 @@ class DQNAgent:
             'replay_count': self.replay_count,
         }, file_path)
 
-    def load_model(self, file_path="dqn_model.pth"):
+    def load_model(self, file_path=os.path.join(os.path.dirname(__file__), "..", "models", "dqn_model.pth")):
         if os.path.exists(file_path):
             checkpoint = torch.load(file_path, map_location=self.device, weights_only=True)
             if isinstance(checkpoint, dict) and 'model' in checkpoint:
